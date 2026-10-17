@@ -43,9 +43,9 @@ jobs:
           Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64-gnullvm.zip"
 
       # 自动创建 GitHub Release 并上传 zip 压缩包
-      name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: koala-windows-x64-gnullvm.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: koala-windows-x64-gnullvm.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
