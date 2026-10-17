@@ -3,8 +3,14 @@ name: Release Build
 on:
   push:
     tags:
-      - 'v*' # 推送 v 开头的 tag（如 v1.0.0）时自动触发
-  workflow_dispatch: # 支持在 GitHub 网页端手动触发
+      - 'v*' # 推送 v 开头的 tag 时自动触发
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '请输入发布版本号 (例如 v1.1.0)'
+        required: true
+        default: 'v1.0.0'
+        type: string
 
 jobs:
   build-windows:
@@ -14,37 +20,49 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 安装默认的 Windows MSVC 稳定版 Rust 工具链
+      # 1. 安装匹配 gnullvm 的 Rust 工具链
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          target: x86_64-pc-windows-gnullvm
 
-      # 缓存 Cargo 依赖，大幅缩短编译时间
+      # 2. 自动安装 gnullvm 编译必需的 LLVM/Clang 链接器，彻底解决 linker not found 报错
+      - name: Install LLVM Clang Linker
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: '17'
+
+      # 3. 缓存 Cargo 依赖，加速编译
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      # 进行 Release 编译（默认使用 MSVC，无需额外配置 C 链接器）
+      # 4. 使用 gnullvm 目标进行 Release 编译
       - name: Build Release Binary
-        run: cargo build --release
+        run: cargo build --release --target x86_64-pc-windows-gnullvm
 
-      # 使用 PowerShell 打包产物
+      # 5. 使用 PowerShell 打包产物
       - name: Prepare Release Package
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path staging
           
-          # 1. 复制默认路径下编译好的主程序
-          Copy-Item "target/release/koala-rust.exe" -Destination "staging/koala.exe"
+          # 复制编译好的主程序
+          Copy-Item "target/x86_64-pc-windows-gnullvm/release/koala-rust.exe" -Destination "staging/koala.exe"
           
-          # 2. 复制 ui 资源文件夹（如果存在）
+          # 复制 ui 资源文件夹（如果存在）
           if (Test-Path "ui") { Copy-Item -Path "ui" -Destination "staging/ui" -Recurse }
           
-          # 3. 打包成 zip 压缩包
-          Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64.zip"
+          # 打包成 zip 压缩包
+          Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64-gnullvm.zip"
 
-      # 自动创建 GitHub Release 并上传 zip 压缩包
+      # 6. 自动创建 GitHub Release 并上传
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: koala-windows-x64.zip
+          files: koala-windows-x64-gnullvm.zip
+          # 智能逻辑：如果是 Git Tag 触发，则用 Tag 名；如果是手动点火，则使用你在网页输入框填写的版本号
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
+          name: "Release ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}"
+          body: "Automated Windows x64 gnullvm build for version ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}."
         env:
           GITHUB_TOKEN: ${{ secrets.KOALA_MUSIC_TOKEN }}
