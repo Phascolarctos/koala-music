@@ -1,0 +1,88 @@
+import { ScrollView } from "std-widgets.slint";
+
+export struct ArchiveBatchSummary {
+    id: string,               // 归档时间/批次ID
+    total-files: int,         // 文件总数量
+    total-duration: string,   // 批次解密总耗时
+    total-size: string,       // 批次文件总大小
+}
+
+export component ArchiveWindow inherits Window {
+    title: "历史归档批次";
+    width: 540px;
+    height: 460px;
+    background: #ffffff;
+
+    in-out property <[ArchiveBatchSummary]> summaries;
+    callback select-batch(int);
+
+    VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        Text {
+            text: "已保存的历史解密批次（点击可加载查看详情）：";
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+        }
+
+        ScrollView {
+            vertical-stretch: 1;
+            
+            VerticalLayout {
+                spacing: 8px;
+                
+                for batch[index] in root.summaries : Rectangle {
+                    height: 54px;
+                    background: touch.pressed ? #e2e8f0 : (touch.has-hover ? #f1f5f9 : #f8fafc);
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: #cbd5e1;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        alignment: space-between;
+
+                        // 左侧：批次时间
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: batch.id;
+                                font-weight: 600;
+                                font-size: 13px;
+                                color: #0f172a;
+                            }
+                        }
+
+                        // 右侧：文件统计、总体量与耗时
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: batch.total-files + " 个文件";
+                                font-size: 12px;
+                                color: #0284c7;
+                                font-weight: 600;
+                            }
+                            Text {
+                                text: batch.total-size + " | 耗时: " + batch.total-duration;
+                                font-size: 11px;
+                                color: #64748b;
+                            }
+                        }
+                    }
+
+                    touch := TouchArea {
+                        clicked => {
+                            root.select-batch(index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,37 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+export component Card inherits Rectangle {
+    in property <string> title;
+    in property <length> radius: 8px;
+    in property <bool> show-divider: true;
+
+    // 卡片外观
+    background: white;
+    border-radius: root.radius;
+    border-width: 1px;
+    border-color: #e0e0e0;
+
+    drop-shadow-blur: 6px;
+    drop-shadow-color: #00000015;
+    drop-shadow-offset-y: 2px;
+
+    VerticalLayout {
+        alignment: start;
+        padding: 16px;
+        spacing: 8px;
+
+        Text {
+            text: root.title;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        
+        Rectangle {
+            height: 1px;
+            background: #e0e0e0;
+            horizontal-stretch: 1;
+        }
+
+        @children
+    }
+}

@@ -1,0 +1,76 @@
+import { Button } from "std-widgets.slint";
+
+export component RecordCard inherits Rectangle {
+    in property <string> source-name;
+    in property <string> output-name;
+    in property <string> file-size;
+    in property <string> decrypt-date;
+    in property <int> status;
+    in property <string> duration;
+    in property <string> error-message;
+
+    callback retry();
+
+    width: 100%;
+    
+    background: #fafafa;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: root.status == 3 ? #ef5350 : (root.status == 2 ? #66bb6a : #e0e0e0);
+
+    VerticalLayout {
+        alignment: start;
+        padding: 14px;
+        spacing: 8px;
+
+        Text {
+            text: root.output-name == "" ? root.source-name : (root.source-name + " → " + root.output-name);
+            font-weight: 500;
+            color: #333;
+        }
+
+        // 状态、文件大小、耗时同行展示
+        HorizontalLayout {
+            spacing: 20px;
+            
+            Text {
+                text: root.status == 0 ? "等待处理" :
+                      root.status == 1 ? "正在解密..." :
+                      root.status == 2 ? "成功" : "失败";
+                color: root.status == 3 ? #e53935 : (root.status == 2 ? #43a047 : #888);
+                font-size: 12px;
+            }
+
+            // 💡 显示文件大小
+            Text {
+                text: "大小: " + root.file-size;
+                color: #888;
+                font-size: 12px;
+            }
+
+            if root.status > 0 : Text {
+                text: "耗时: " + root.duration;
+                color: #888;
+                font-size: 12px;
+            }
+
+            if root.decrypt-date != "" : Text {
+                text: "日期: " + root.decrypt-date;
+                color: #888;
+                font-size: 12px;
+            }
+        }
+
+        if root.status == 3 && root.error-message != "" : Text {
+            text: "错误原因: " + root.error-message;
+            color: #e53935;
+            font-size: 12px;
+            wrap: word-wrap;
+        }
+
+        if root.status == 3 : Button {
+            text: "重试";
+            clicked => { root.retry(); }
+        }
+    }
+}
