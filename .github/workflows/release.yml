@@ -26,21 +26,37 @@ jobs:
         with:
           target: x86_64-pc-windows-gnullvm
 
-      # 2. 自动安装 gnullvm 编译必需的 LLVM/Clang 链接器，彻底解决 linker not found 报错
+      # 2. 自动安装 LLVM/Clang 链接器环境
       - name: Install LLVM Clang Linker
         uses: KyleMayes/install-llvm-action@v2
         with:
           version: '17'
 
-      # 3. 缓存 Cargo 依赖，加速编译
+      # 3. 核心桥接：为 gnullvm 制造它强行要求的特定名字链接器替身
+      - name: Create gnullvm Linker Alias
+        shell: powershell
+        run: |
+          $clangPath = (Get-Command clang).Source
+          $clangDir = Split-Path $clangPath
+          Write-Host "Found clang at: $clangPath"
+          
+          # 复制并重命名为 gnullvm 专属的交叉编译链接器名字
+          Copy-Item "$clangDir\clang.exe" "$clangDir\x86_64-w64-mingw32-clang.exe" -Force
+          Copy-Item "$clangDir\clang++.exe" "$clangDir\x86_64-w64-mingw32-clang++.exe" -Force
+          
+          # 将该路径加入环境变量，确保 Cargo 能找到它
+          echo "$clangDir" >> $env:GITHUB_PATH
+          Write-Host "Linker alias created successfully!"
+
+      # 4. 缓存 Cargo 依赖，加速编译
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      # 4. 使用 gnullvm 目标进行 Release 编译
+      # 5. 使用 gnullvm 目标进行 Release 编译
       - name: Build Release Binary
         run: cargo build --release --target x86_64-pc-windows-gnullvm
 
-      # 5. 使用 PowerShell 打包产物
+      # 6. 使用 PowerShell 打包产物
       - name: Prepare Release Package
         shell: powershell
         run: |
@@ -55,12 +71,11 @@ jobs:
           # 打包成 zip 压缩包
           Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64-gnullvm.zip"
 
-      # 6. 自动创建 GitHub Release 并上传
+      # 7. 自动创建 GitHub Release 并上传
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: koala-windows-x64-gnullvm.zip
-          # 智能逻辑：如果是 Git Tag 触发，则用 Tag 名；如果是手动点火，则使用你在网页输入框填写的版本号
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}
           name: "Release ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}"
           body: "Automated Windows x64 gnullvm build for version ${{ github.ref_type == 'tag' && github.ref_name || inputs.version }}."
