@@ -15,9 +15,13 @@ slint = "1.18.1"
 
 [target.'cfg(target_os = "android")'.dependencies]
 log = "0.4"
-slint = { version = "1.18.0", features = ["backend-android-activity-06"] }
+slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 android_logger = "0.13"
 android-activity = { version = "0.6", features = ["native-activity"] }
+
+[package.metadata.android.sdk]
+min_sdk_version = 35
+target_sdk_version = 35
 
 [build-dependencies]
 slint-build = "1.18.1"
