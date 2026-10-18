@@ -32,8 +32,8 @@ jobs:
         with:
           version: '17'
 
-      # 3. 核心桥接：为 gnullvm 制造它强行要求的特定名字链接器替身
-      - name: Create gnullvm Linker Alias
+      # 3. 核心桥接：制造 gnullvm 专属链接器替身，并清理 MinGW ld.exe 的干扰
+      - name: Create gnullvm Linker Alias & Clean Path
         shell: powershell
         run: |
           $clangPath = (Get-Command clang).Source
@@ -44,9 +44,13 @@ jobs:
           Copy-Item "$clangDir\clang.exe" "$clangDir\x86_64-w64-mingw32-clang.exe" -Force
           Copy-Item "$clangDir\clang++.exe" "$clangDir\x86_64-w64-mingw32-clang++.exe" -Force
           
-          # 将该路径加入环境变量，确保 Cargo 能找到它
+          # 将 LLVM 目录置顶到环境变量 PATH
           echo "$clangDir" >> $env:GITHUB_PATH
-          Write-Host "Linker alias created successfully!"
+
+          # 关键：从 PATH 中彻底剔除 C:\mingw64\bin，防止它误调用传统的 ld.exe 导致 -lunwind 找不到报错
+          $newPath = ($env:PATH -split ';' | Where-Object { $_ -ne 'C:\mingw64\bin' }) -join ';'
+          echo "PATH=$newPath" >> $env:GITHUB_ENV
+          Write-Host "Path cleaned and linker aliases created successfully!"
 
       # 4. 缓存 Cargo 依赖，加速编译
       - name: Cache Cargo dependencies
