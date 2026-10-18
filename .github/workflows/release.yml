@@ -20,47 +20,69 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. 安装匹配 gnullvm 的 Rust 工具链
+      # 1. 安装 Rust 工具链和 gnullvm 目标
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           target: x86_64-pc-windows-gnullvm
 
-      # 2. 自动安装 LLVM/Clang 链接器环境
-      - name: Install LLVM Clang Linker
-        uses: KyleMayes/install-llvm-action@v2
+      # 2. 缓存 llvm-mingw 工具链，显著缩短 CI 时间
+      - name: Cache LLVM-MinGW
+        id: cache-llvm-mingw
+        uses: actions/cache@v4
         with:
-          version: '17'
+          path: ${{ runner.temp }}\llvm-mingw
+          key: ${{ runner.os }}-llvm-mingw-20260812
 
-      # 3. 核心桥接：制造 gnullvm 专属链接器替身，并清理 MinGW ld.exe 的干扰
-      - name: Create gnullvm Linker Alias & Clean Path
-        shell: powershell
+      # 3. 下载并安装 llvm-mingw 预编译包（仅在缓存未命中时执行）
+      - name: Install LLVM-MinGW (gnullvm toolchain)
+        if: steps.cache-llvm-mingw.outputs.cache-hit != 'true'
+        shell: pwsh
         run: |
-          $clangPath = (Get-Command clang).Source
-          $clangDir = Split-Path $clangPath
-          Write-Host "Found clang at: $clangPath"
+          $llvmMingwVersion = "20260812" # 固定版本，便于缓存
+          $archiveName = "llvm-mingw-${llvmMingwVersion}-ucrt-x86_64.zip"
+          $url = "https://github.com/mstorsjo/llvm-mingw/releases/download/${llvmMingwVersion}/${archiveName}"
+          $zipPath = "$env:RUNNER_TEMP\llvm-mingw.zip"
           
-          # 复制并重命名为 gnullvm 专属的交叉编译链接器名字
-          Copy-Item "$clangDir\clang.exe" "$clangDir\x86_64-w64-mingw32-clang.exe" -Force
-          Copy-Item "$clangDir\clang++.exe" "$clangDir\x86_64-w64-mingw32-clang++.exe" -Force
+          Write-Host "Downloading LLVM-MinGW $llvmMingwVersion ..."
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath "$env:RUNNER_TEMP\llvm-mingw" -Force
+          Remove-Item $zipPath
+
+      # 4. 将 llvm-mingw 的 bin 目录添加到 PATH，并清理冲突路径
+      - name: Configure Linker and Clean PATH
+        shell: pwsh
+        run: |
+          # 找到解压后的 llvm-mingw 目录
+          $extractedDir = Get-ChildItem "$env:RUNNER_TEMP\llvm-mingw" -Directory | Select-Object -First 1
+          $binPath = Join-Path $extractedDir.FullName 'bin'
           
-          # 将 LLVM 目录置顶到环境变量 PATH
-          echo "$clangDir" >> $env:GITHUB_PATH
+          # 将 llvm-mingw 的 bin 目录置顶到 PATH
+          Add-Content -Path $env:GITHUB_PATH -Value $binPath
+          Write-Host "Added $binPath to PATH"
+          
+          # 关键：从 PATH 中移除可能冲突的路径（Strawberry Perl, 传统 MinGW）
+          $cleanPath = ($env:PATH -split ';' | Where-Object { 
+              $_ -notlike '*Strawberry*c\bin*' -and 
+              $_ -notlike '*mingw64\bin*' -and 
+              $_ -notlike '*mingw32\bin*'
+          }) -join ';'
+          echo "PATH=$cleanPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "PATH cleaned successfully."
 
-          # 关键：从 PATH 中彻底剔除 C:\mingw64\bin，防止它误调用传统的 ld.exe 导致 -lunwind 找不到报错
-          $newPath = ($env:PATH -split ';' | Where-Object { $_ -ne 'C:\mingw64\bin' }) -join ';'
-          echo "PATH=$newPath" >> $env:GITHUB_ENV
-          Write-Host "Path cleaned and linker aliases created successfully!"
+          # 验证链接器
+          clang --version
+          ld.lld --version
 
-      # 4. 缓存 Cargo 依赖，加速编译
+      # 5. 缓存 Cargo 依赖，加速编译
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      # 5. 使用 gnullvm 目标进行 Release 编译
+      # 6. 使用 gnullvm 目标进行 Release 编译
       - name: Build Release Binary
         run: cargo build --release --target x86_64-pc-windows-gnullvm
 
-      # 6. 使用 PowerShell 打包产物
+      # 7. 使用 PowerShell 打包产物
       - name: Prepare Release Package
         shell: powershell
         run: |
@@ -75,7 +97,7 @@ jobs:
           # 打包成 zip 压缩包
           Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64-gnullvm.zip"
 
-      # 7. 自动创建 GitHub Release 并上传
+      # 8. 自动创建 GitHub Release 并上传
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
