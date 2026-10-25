@@ -43,9 +43,6 @@ name = "android.permission.READ_MEDIA_AUDIO"
 min_sdk_version = 35
 target_sdk_version = 35
 
-[package.metadata.android.signing.release]
-path = "/home/runner/.android/release.keystore"
-
 [build-dependencies]
 slint-build = "1.18.1"
 
