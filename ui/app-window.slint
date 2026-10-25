@@ -6,7 +6,6 @@ import {
     RadioGroup,
     Switch,
     Palette,
-    ScrollView,
     ComboBox,
     LineEdit,
 } from "std-widgets.slint";
@@ -56,8 +55,10 @@ export component AppWindow inherits Window {
     callback load-archive-history();
 
     Rectangle {
-        width: 100%;
-        height: 100%;
+        x: root.safe-area-insets.left;
+        y: root.safe-area-insets.top;
+        width: root.width - root.safe-area-insets.right - root.safe-area-insets.left;
+        height: root.height - root.safe-area-insets.bottom - root.safe-area-insets.top;
 
         HorizontalLayout {
             width: 100%;

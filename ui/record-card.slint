@@ -7,6 +7,7 @@ export component RecordCard inherits Rectangle {
     in property <string> decrypt-date;
     in property <int> status;
     in property <string> duration;
+    in property <string> music_length;
     in property <string> error-message;
 
     callback retry();
@@ -44,6 +45,12 @@ export component RecordCard inherits Rectangle {
             // 💡 显示文件大小
             Text {
                 text: "大小: " + root.file-size;
+                color: #888;
+                font-size: 12px;
+            }
+
+             if root.music_length != "" && root.music_length != "-" : Text {
+                text: "时长: " + root.music_length;
                 color: #888;
                 font-size: 12px;
             }
