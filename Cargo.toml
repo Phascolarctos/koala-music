@@ -23,6 +23,22 @@ log = "0.4"
 slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
 android_logger = "0.13"
 
+
+[package.metadata.android]
+package = "com.koala.music"
+label = "Koala Music"
+version_code = 100
+version_name = "0.1.0"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+
+# [[package.metadata.android.uses_permission]]
+# name = "android.permission.INTERNET"
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.READ_MEDIA_AUDIO"
+
 [package.metadata.android.sdk]
 min_sdk_version = 35
 target_sdk_version = 35
