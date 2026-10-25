@@ -27,8 +27,6 @@ android_logger = "0.13"
 [package.metadata.android]
 package = "com.koala.music"
 label = "Koala Music"
-version_code = 100
-version_name = "0.1.0"
 
 [[package.metadata.android.uses_permission]]
 name = "android.permission.MANAGE_EXTERNAL_STORAGE"
