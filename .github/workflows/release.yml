@@ -125,7 +125,6 @@ jobs:
 
       - name: Build Signed Android APK
         env:
-          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
           CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           CARGO_APK_RELEASE_KEYALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           CARGO_APK_RELEASE_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
