@@ -18,9 +18,6 @@ on:
         type: string
 
 jobs:
-  # ==========================================
-  # Job 1: Windows 构建
-  # ==========================================
   build-windows:
     runs-on: windows-latest
     steps:
@@ -74,7 +71,6 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path staging
-          # 纯净打包：只复制编译好的主程序，不包含 ui 等原始文件
           Copy-Item "target/x86_64-pc-windows-gnullvm/release/koala-rust.exe" -Destination "staging/koala.exe"
           Compress-Archive -Path "staging/*" -DestinationPath "koala-windows-x64-gnullvm.zip"
 
@@ -84,9 +80,6 @@ jobs:
           name: windows-package
           path: koala-windows-x64-gnullvm.zip
 
-  # ==========================================
-  # Job 2: Android 构建 (包含签名)
-  # ==========================================
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -102,7 +95,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0 ndk;27.0.12077973'
+          packages: 'platforms;android-35 build-tools;35.0.0 ndk;27.0.12077973'
           accept-android-sdk-licenses: true
 
       - name: Install Rust targets
@@ -125,29 +118,31 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      # 🔐 解码 Keystore
       - name: Decode Keystore
         run: |
           mkdir -p $HOME/.android
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $HOME/.android/release.keystore
 
-      # 🔐 构建并签名 APK
       - name: Build Signed Android APK
         env:
           CARGO_APK_RELEASE_KEYSTORE: $HOME/.android/release.keystore
           CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CARGO_APK_RELEASE_KEYALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CARGO_APK_RELEASE_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cargo apk build --target aarch64-linux-android --lib --release
+
+      - name: Prepare Android Package
+        run: |
+          mkdir -p staging
+          find target -name "*.apk" -exec cp {} staging/koala-android-arm64.apk \;
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-package
-          path: target/release/apk/*.apk
+          path: staging/*.apk
 
-  # ==========================================
-  # Job 3: 汇总并发布 GitHub Release
-  # ==========================================
   create-release:
     needs: [build-windows, build-android]
     runs-on: ubuntu-latest
