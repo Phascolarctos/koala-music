@@ -118,16 +118,17 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Decode Keystore and Set Env
+      - name: Decode Keystore
         run: |
-          mkdir -p $HOME/.android
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > $HOME/.android/release.keystore
-          echo "CARGO_APK_RELEASE_KEYSTORE=$HOME/.android/release.keystore" >> $GITHUB_ENV
-          echo "CARGO_APK_RELEASE_KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
-          echo "CARGO_APK_RELEASE_KEYALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> $GITHUB_ENV
-          echo "CARGO_APK_RELEASE_KEYSTORE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> $GITHUB_ENV
+          mkdir -p /home/runner/.android
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > /home/runner/.android/release.keystore
 
       - name: Build Signed Android APK
+        env:
+          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CARGO_APK_RELEASE_KEYALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CARGO_APK_RELEASE_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cargo apk build --target aarch64-linux-android --lib --release
 
