@@ -1,20 +1,19 @@
-# Koala rust
+# Koala music
 
-> Q: why this name koala rust?
+Because of the music's copyright, I cannot listen local music comfortably.
 
-> A: I don't know, just it.
+So I build this tool to help me unlock ncm format music to normal flac format.
 
 ## Platform Support
 
 - windows
   - x86_64
-  - arrch64
+
 - android
   - arm64-v8a
-- others
 
 ## Usage
 
-1. download release of os platform
+1. download
 
 2. enjoy!
