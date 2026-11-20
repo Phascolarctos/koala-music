@@ -143,7 +143,7 @@ jobs:
 
           "$BUILD_TOOLS/zipalign" -p -f 4 "$UNSIGNED_APK" aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
-            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks /home/runner/.android/release.keystore \
             --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
             --ks-key-alias "$ANDROID_KEY_ALIAS" \
             --key-pass "pass:$ANDROID_KEY_PASSWORD" \
