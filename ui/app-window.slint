@@ -94,8 +94,23 @@ component ControlPanel inherits Rectangle {
         Card {
             title: "解密策略";
             compact: root.is-narrow;
-            RadioGroup {
-                orientation: root.is-narrow ? Orientation.vertical : Orientation.horizontal;
+            if root.is-narrow: RadioGroup {
+                orientation: vertical;
+                RadioButton {
+                    text: "NCM 解密";
+                    checked <=> root.is-ncm;
+                }
+                RadioButton {
+                    text: "KGM 解密";
+                    checked <=> root.is-kgm;
+                }
+                RadioButton {
+                    text: "QQ 解密";
+                    checked <=> root.is-tim;
+                }
+            }
+            if !root.is-narrow: RadioGroup {
+                orientation: horizontal;
                 RadioButton {
                     text: "NCM 解密";
                     checked <=> root.is-ncm;
