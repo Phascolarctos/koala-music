@@ -9,11 +9,12 @@ export component RecordCard inherits Rectangle {
     in property <string> duration;
     in property <string> music_length;
     in property <string> error-message;
+    in property <bool> is-narrow: false;
 
     callback retry();
 
     width: 100%;
-    
+
     background: #fafafa;
     border-radius: 6px;
     border-width: 1px;
@@ -21,19 +22,19 @@ export component RecordCard inherits Rectangle {
 
     VerticalLayout {
         alignment: start;
-        padding: 14px;
-        spacing: 8px;
+        padding: root.is-narrow ? 10px : 14px;
+        spacing: root.is-narrow ? 5px : 8px;
 
         Text {
             text: root.output-name == "" ? root.source-name : (root.source-name + " → " + root.output-name);
             font-weight: 500;
+            font-size: root.is-narrow ? 13px : 14px;
             color: #333;
+            wrap: word-wrap;
         }
 
-        // 状态、文件大小、耗时同行展示
-        HorizontalLayout {
-            spacing: 20px;
-            
+        if root.is-narrow: VerticalLayout {
+            spacing: 3px;
             Text {
                 text: root.status == 0 ? "等待处理" :
                       root.status == 1 ? "正在解密..." :
@@ -41,26 +42,44 @@ export component RecordCard inherits Rectangle {
                 color: root.status == 3 ? #e53935 : (root.status == 2 ? #43a047 : #888);
                 font-size: 12px;
             }
-
-            // 💡 显示文件大小
-            Text {
-                text: "大小: " + root.file-size;
-                color: #888;
-                font-size: 12px;
-            }
-
-             if root.music_length != "" && root.music_length != "-" : Text {
+            Text { text: "大小: " + root.file-size; color: #888; font-size: 12px; }
+            if root.music_length != "" && root.music_length != "-" : Text {
                 text: "时长: " + root.music_length;
                 color: #888;
                 font-size: 12px;
             }
-
             if root.status > 0 : Text {
                 text: "耗时: " + root.duration;
                 color: #888;
                 font-size: 12px;
             }
+            if root.decrypt-date != "" : Text {
+                text: "日期: " + root.decrypt-date;
+                color: #888;
+                font-size: 12px;
+            }
+        }
 
+        if !root.is-narrow: HorizontalLayout {
+            spacing: 20px;
+            Text {
+                text: root.status == 0 ? "等待处理" :
+                      root.status == 1 ? "正在解密..." :
+                      root.status == 2 ? "成功" : "失败";
+                color: root.status == 3 ? #e53935 : (root.status == 2 ? #43a047 : #888);
+                font-size: 12px;
+            }
+            Text { text: "大小: " + root.file-size; color: #888; font-size: 12px; }
+            if root.music_length != "" && root.music_length != "-" : Text {
+                text: "时长: " + root.music_length;
+                color: #888;
+                font-size: 12px;
+            }
+            if root.status > 0 : Text {
+                text: "耗时: " + root.duration;
+                color: #888;
+                font-size: 12px;
+            }
             if root.decrypt-date != "" : Text {
                 text: "日期: " + root.decrypt-date;
                 color: #888;
@@ -77,6 +96,7 @@ export component RecordCard inherits Rectangle {
 
         if root.status == 3 : Button {
             text: "重试";
+            height: root.is-narrow ? 48px : 32px;
             clicked => { root.retry(); }
         }
     }
