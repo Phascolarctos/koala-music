@@ -3,6 +3,7 @@ export component Card inherits Rectangle {
     in property <string> title;
     in property <length> radius: 8px;
     in property <bool> show-divider: true;
+    in property <bool> compact: false;
 
     // 卡片外观
     background: white;
@@ -16,12 +17,12 @@ export component Card inherits Rectangle {
 
     VerticalLayout {
         alignment: start;
-        padding: 16px;
-        spacing: 8px;
+        padding: root.compact ? 10px : 16px;
+        spacing: root.compact ? 5px : 8px;
 
         Text {
             text: root.title;
-            font-size: 16px;
+            font-size: root.compact ? 14px : 16px;
             font-weight: 600;
             color: #1a1a1a;
         }

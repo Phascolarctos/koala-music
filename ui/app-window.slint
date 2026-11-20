@@ -1,33 +1,190 @@
 import {
     Button,
-    VerticalBox,
-    HorizontalBox,
-    TextEdit,
-    RadioGroup,
-    Switch,
-    Palette,
     ComboBox,
     LineEdit,
+    RadioGroup,
 } from "std-widgets.slint";
 import { Card } from "card.slint";
-import { ListCard,Record } from "list-card.slint";
+import { ListCard, Record } from "list-card.slint";
 
-export enum DecodeType{ 
+export enum DecodeType {
     ncm,
     kgm,
-    tim
+    tim,
 }
 
 export struct DecodeArgs {
     source-path: string,
     target-path: string,
-    decode-type: DecodeType
+    decode-type: DecodeType,
+}
+
+component ControlPanel inherits Rectangle {
+    in property <bool> is-narrow;
+    in-out property <DecodeType> current-type;
+    in-out property <string> source-path;
+    in-out property <string> target-path;
+    in-out property <[string]> history-sources;
+    in-out property <[string]> history-targets;
+    in property <[Record]> records;
+
+    callback source-dir-clicked();
+    callback source-dir-changed(string);
+    callback target-dir-clicked();
+    callback target-dir-changed(string);
+    callback remove-source-history(string);
+    callback remove-target-history(string);
+    callback trigger-process-records();
+    callback do-decode(DecodeArgs);
+    callback save-archive();
+    callback load-archive-history();
+
+    property <bool> is-ncm: root.current-type == DecodeType.ncm;
+    property <bool> is-kgm: root.current-type == DecodeType.kgm;
+    property <bool> is-tim: root.current-type == DecodeType.tim;
+    property <length> control-height: root.is-narrow ? 48px : 40px;
+
+    VerticalLayout {
+        alignment: start;
+        padding: root.is-narrow ? 12px : 16px;
+        spacing: root.is-narrow ? 8px : 12px;
+
+        Card {
+            title: "原始文件目录";
+            compact: root.is-narrow;
+            LineEdit {
+                text <=> root.source-path;
+                placeholder-text: "文件夹路径，例如：D:/Source";
+                height: root.control-height;
+                accepted(text) => {
+                    if !text.is-empty {
+                        root.trigger-process-records();
+                    }
+                }
+                edited(val) => {
+                    root.source-dir-changed(val);
+                }
+            }
+            ComboBox {
+                height: root.control-height;
+                model: root.history-sources;
+                selected(value) => {
+                    root.source-path = value;
+                    root.source-dir-changed(value);
+                }
+            }
+            Button {
+                text: "从历史中移除";
+                primary: true;
+                height: root.control-height;
+                clicked => {
+                    root.remove-source-history(root.source-path);
+                }
+            }
+            Button {
+                text: "浏览本地目录";
+                primary: true;
+                height: root.control-height;
+                clicked => {
+                    root.source-dir-clicked();
+                }
+            }
+        }
+
+        Card {
+            title: "解密策略";
+            compact: root.is-narrow;
+            RadioGroup {
+                orientation: root.is-narrow ? vertical : horizontal;
+                RadioButton {
+                    text: "NCM 解密";
+                    checked <=> root.is-ncm;
+                }
+                RadioButton {
+                    text: "KGM 解密";
+                    checked <=> root.is-kgm;
+                }
+                RadioButton {
+                    text: "QQ 解密";
+                    checked <=> root.is-tim;
+                }
+            }
+        }
+
+        Card {
+            title: "目标文件目录";
+            compact: root.is-narrow;
+            LineEdit {
+                text <=> root.target-path;
+                placeholder-text: "文件夹路径，例如：D:/Target";
+                height: root.control-height;
+            }
+            ComboBox {
+                height: root.control-height;
+                model: root.history-targets;
+                selected(value) => {
+                    root.target-path = value;
+                    root.target-dir-changed(value);
+                }
+            }
+            Button {
+                text: "从历史中移除";
+                primary: true;
+                height: root.control-height;
+                clicked => {
+                    root.remove-target-history(root.target-path);
+                }
+            }
+            Button {
+                text: "浏览本地目录";
+                primary: true;
+                height: root.control-height;
+                clicked => {
+                    root.target-dir-clicked();
+                }
+            }
+        }
+
+        Button {
+            text: "开始解密";
+            primary: true;
+            height: root.control-height;
+            clicked => {
+                root.do-decode({
+                    source-path: root.source-path,
+                    target-path: root.target-path,
+                    decode-type: root.current-type,
+                });
+            }
+        }
+
+        Card {
+            title: "归档";
+            compact: root.is-narrow;
+            Button {
+                text: "归档当前记录";
+                primary: true;
+                height: root.control-height;
+                enabled: root.records.length > 0;
+                clicked => {
+                    root.save-archive();
+                }
+            }
+            Button {
+                text: "加载归档";
+                primary: true;
+                height: root.control-height;
+                clicked => {
+                    root.load-archive-history();
+                }
+            }
+        }
+    }
 }
 
 export component AppWindow inherits Window {
     title: "Koala";
     icon: @image-url("icons/koala.svg");
-    maximized: true;
 
     in-out property <DecodeType> current-type;
     in-out property <string> source-path;
@@ -36,18 +193,14 @@ export component AppWindow inherits Window {
     in-out property <[string]> history-targets;
     in-out property <[Record]> records;
 
-    property <bool> is-ncm: root.current-type == DecodeType.ncm;
-    property <bool> is-kgm: root.current-type == DecodeType.kgm;
-    property <bool> is-tim: root.current-type == DecodeType.tim;
+    property <bool> is-narrow: root.width < 720px;
 
     callback source-dir-clicked();
     callback source-dir-changed(string);
     callback target-dir-clicked();
     callback target-dir-changed(string);
-
     callback remove-source-history(string);
     callback remove-target-history(string);
-
     callback trigger-process-records();
     callback scan-source-dir(string);
     callback do-decode(DecodeArgs);
@@ -60,172 +213,78 @@ export component AppWindow inherits Window {
         width: root.width - root.safe-area-insets.right - root.safe-area-insets.left;
         height: root.height - root.safe-area-insets.bottom - root.safe-area-insets.top;
 
-        HorizontalLayout {
-            width: 100%;
-            height: 100%;
+        if root.is-narrow: VerticalLayout {
+            Rectangle {
+                vertical-stretch: 0;
+                ControlPanel {
+                    width: 100%;
+                    is-narrow: true;
+                    current-type <=> root.current-type;
+                    source-path <=> root.source-path;
+                    target-path <=> root.target-path;
+                    history-sources <=> root.history-sources;
+                    history-targets <=> root.history-targets;
+                    records: root.records;
+                    source-dir-clicked => { root.source-dir-clicked(); }
+                    source-dir-changed(path) => { root.source-dir-changed(path); }
+                    target-dir-clicked => { root.target-dir-clicked(); }
+                    target-dir-changed(path) => { root.target-dir-changed(path); }
+                    remove-source-history(path) => { root.remove-source-history(path); }
+                    remove-target-history(path) => { root.remove-target-history(path); }
+                    trigger-process-records => { root.trigger-process-records(); }
+                    do-decode(args) => { root.do-decode(args); }
+                    save-archive => { root.save-archive(); }
+                    load-archive-history => { root.load-archive-history(); }
+                }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+                min-height: 160px;
+                ListCard {
+                    width: 100%;
+                    height: 100%;
+                    is-narrow: true;
+                    records: root.records;
+                }
+            }
+        }
 
+        if !root.is-narrow: HorizontalLayout {
             Rectangle {
                 horizontal-stretch: 1;
                 preferred-width: 0;
                 min-width: 0;
-
-                VerticalLayout {
-                    alignment: start;
-                    padding: 16px;
-                    spacing: 12px;
-                    Card {
-                        title: "原始文件目录";
-                        LineEdit {
-                            text<=> root.source-path;
-                            placeholder-text: "文件夹路径，例如：D:/Source";
-                            height: 40px;
-                            accepted(text) => {
-                                if !text.is-empty{
-                                    root.trigger-process-records();
-                                }
-                            }
-                            edited(val) => {
-                                root.source-dir-changed(val);
-                            }
-                        }
-                        ComboBox {
-                            height: 40px;
-                            model: root.history-sources;
-                            selected(value) => {
-                                root.source-path = value;
-                                root.source-dir-changed(value);
-                            }
-                        }
-                        Button {
-                            text: "从历史中移除";
-                            primary: true;
-                            height: 40px;
-                            clicked => {
-                                root.remove-source-history(root.source-path);
-                            }
-                        }
-                        Button {
-                            text: "浏览本地目录";
-                            primary: true;
-                            height: 40px;
-                            clicked => {
-                                root.source-dir-clicked();
-                            }
-                        }
-                    }
-
-
-                    Card {
-                        title: "解密策略";
-                        RadioGroup {
-                            orientation: horizontal;
-                            RadioButton {
-                                text: "NCM 解密";
-                                checked<=> is-ncm;
-                            }
-
-                            RadioButton {
-                                text: "KGM 解密";
-                                checked<=> is-kgm;
-                            }
-
-                            RadioButton {
-                                text: "QQ 解密";
-                                checked<=> is-tim;
-                            }
-                        }
-                    }
-
-                    Card {
-                        title: "目标文件目录";
-                        LineEdit {
-                            text<=> root.target-path;
-                            placeholder-text: "文件夹路径，例如：D:/Target";
-                            height: 40px;
-                        }
-                        ComboBox {
-                            height: 40px;
-                            model: root.history-targets;
-                            selected(value) => {
-                                root.target-path = value;
-                                root.target-dir-changed(value);
-                            }
-                        }
-
-                        Button {
-                            text: "从历史中移除";
-                            primary: true;
-                            height: 40px;
-                            clicked => {
-                                root.remove-target-history(root.target-path);
-                            }
-                        }
-
-                        Button {
-                            text: "浏览本地目录";
-                            primary: true;
-                            height: 40px;
-                            clicked => {
-                                root.target-dir-clicked();
-                            }
-                        }
-                    }
-
-                    Button {
-                        text: "开始解密";
-                        primary: true;
-                        height: 40px;
-                        clicked => {
-
-                            root.do-decode({
-                                source-path: root.source-path,
-                                target-path: root.target-path,
-                                decode-type: root.current-type
-                            });
-                        }
-                    }
-
-                    Card {
-                        title: "归档";
-                        Button {
-                            text: "归档当前记录";
-                            primary: true;
-                            height: 40px;
-                            enabled: root.records.length > 0;
-                            clicked => { 
-                                root.save-archive(); 
-                            }
-                        }
-                        Button {
-                            text: "加载归档";
-                            primary: true;
-                            height: 40px;
-                            clicked => {
-                                root.load-archive-history();
-                            }
-                        }
-                    }
+                ControlPanel {
+                    width: 100%;
+                    is-narrow: false;
+                    current-type <=> root.current-type;
+                    source-path <=> root.source-path;
+                    target-path <=> root.target-path;
+                    history-sources <=> root.history-sources;
+                    history-targets <=> root.history-targets;
+                    records: root.records;
+                    source-dir-clicked => { root.source-dir-clicked(); }
+                    source-dir-changed(path) => { root.source-dir-changed(path); }
+                    target-dir-clicked => { root.target-dir-clicked(); }
+                    target-dir-changed(path) => { root.target-dir-changed(path); }
+                    remove-source-history(path) => { root.remove-source-history(path); }
+                    remove-target-history(path) => { root.remove-target-history(path); }
+                    trigger-process-records => { root.trigger-process-records(); }
+                    do-decode(args) => { root.do-decode(args); }
+                    save-archive => { root.save-archive(); }
+                    load-archive-history => { root.load-archive-history(); }
                 }
             }
-
-            // Rectangle {
-            //     width: 1px;
-            //     background: #c0c0c0;
-            // }
-
             Rectangle {
                 vertical-stretch: 1;
                 horizontal-stretch: 1;
                 preferred-width: 0;
                 min-width: 0;
-                VerticalLayout {
-                    padding: 16px;
-                    spacing: 12px;
-                    ListCard {
-                        
-                        vertical-stretch: 1;
-                        records: root.records;
-                    }
+                ListCard {
+                    width: 100%;
+                    height: 100%;
+                    is-narrow: false;
+                    records: root.records;
                 }
             }
         }

@@ -17,6 +17,7 @@ export struct Record {
 export component ListCard inherits Rectangle {
 
     in property <[Record]> records;
+    in property <bool> is-narrow: false;
 
     width: 100%;
     height: 100%;

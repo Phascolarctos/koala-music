@@ -6,6 +6,7 @@ use std::rc::Rc;
 pub fn run_desktop() -> Result<(), Box<dyn Error>> {
     install_panic_hook();
     let ui = AppWindow::new()?;
+    ui.window().set_maximized(true);
     bind_callbacks(&ui);
     ui.run()?;
     Ok(())
