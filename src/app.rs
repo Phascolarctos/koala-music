@@ -3,7 +3,7 @@ use chrono::{DateTime, Local};
 use lofty::file::AudioFile;
 use lofty::read_from_path;
 use ncmmiao::Signal;
-use slint::{ModelRc, VecModel};
+use slint::{Model, ModelRc, VecModel};
 use std::fs;
 use std::path::Path;
 use std::rc::Rc;
@@ -107,7 +107,7 @@ pub fn run_decode_task(source: String, target: String, ui_weak: slint::Weak<AppW
             true,
             cancel_th,
             Box::new(move |i, signal| {
-                let snapshot = {
+                let updated = {
                     let mut r = records_th.lock().unwrap();
                     let mut t = timers_th.lock().unwrap();
                     match signal {
@@ -118,7 +118,7 @@ pub fn run_decode_task(source: String, target: String, ui_weak: slint::Weak<AppW
                             r[i].status = 1;
                             t[i] = Some(Instant::now());
                         }
-                        Signal::Decrypt(_) => {}
+                        Signal::Decrypt(_) => return,
                         Signal::End => {
                             r[i].status = 2;
                             if let Some(st) = t[i].take() {
@@ -151,9 +151,9 @@ pub fn run_decode_task(source: String, target: String, ui_weak: slint::Weak<AppW
                         }
                         _ => return,
                     }
-                    r.clone()
+                    r[i].clone()
                 };
-                push_snapshot(&ui_th, snapshot);
+                push_record_update(&ui_th, i, updated);
             }),
         );
     });
@@ -164,6 +164,16 @@ fn push_snapshot(ui_weak: &slint::Weak<AppWindow>, snapshot: Vec<Record>) {
     slint::invoke_from_event_loop(move || {
         if let Some(ui) = ui_weak.upgrade() {
             ui.set_records(ModelRc::from(Rc::new(VecModel::from(snapshot))));
+        }
+    })
+    .ok();
+}
+
+fn push_record_update(ui_weak: &slint::Weak<AppWindow>, index: usize, record: Record) {
+    let ui_weak = ui_weak.clone();
+    slint::invoke_from_event_loop(move || {
+        if let Some(ui) = ui_weak.upgrade() {
+            ui.get_records().set_row_data(index, record);
         }
     })
     .ok();
