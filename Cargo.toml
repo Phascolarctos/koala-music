@@ -16,30 +16,12 @@ serde_json = "1.0.154"
 slint = "1.18.1"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
-rfd = "0.17.2"
+rfd = "0.18.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
 log = "0.4"
-slint = { version = "1.18.1", features = ["backend-android-activity-06"] }
-android_logger = "0.13"
-
-
-[package.metadata.android]
-package = "com.koala.music"
-label = "Koala Music"
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.MANAGE_EXTERNAL_STORAGE"
-
-# [[package.metadata.android.uses_permission]]
-# name = "android.permission.INTERNET"
-
-[[package.metadata.android.uses_permission]]
-name = "android.permission.READ_MEDIA_AUDIO"
-
-[package.metadata.android.sdk]
-min_sdk_version = 36
-target_sdk_version = 36
+slint = { version = "1.19.0", features = ["backend-android-activity-06"] }
+android_logger = "0.15.1"
 
 [build-dependencies]
 slint-build = "1.18.1"
@@ -56,3 +38,35 @@ opt-level = 3
 
 [profile.release.package."*"]
 opt-level = 3
+
+[package.metadata.android]
+package = "com.koala.music"
+apk_name = "KoalaMusic"
+build_targets = [ "aarch64-linux-android" ]
+
+[package.metadata.android.sdk]
+min_sdk_version = 24
+target_sdk_version = 37
+max_sdk_version = 37
+
+[[package.metadata.android.application.activity]]
+name = "android.app.NativeActivity"
+
+[[package.metadata.android.application.activity.meta_data]]
+name = "android.app.lib_name"
+
+[[package.metadata.android.application.activity.intent_filter]]
+actions = ["android.intent.action.VIEW", "android.intent.action.MAIN"]
+categories = ["android.intent.category.LAUNCHER"]
+
+[[package.metadata.android.uses_permission]]
+name = "android.permission.WRITE_EXTERNAL_STORAGE"
+max_sdk_version = 37
+
+# APK 签名在 CI（.github/workflows/release.yml）中通过 apksigner 完成，
+# 使用 GitHub Secrets：ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD /
+# ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD。
+# 本地调试签名可按需添加：
+# [package.metadata.android.signing.release]
+# path = "my.keystore"
+# keystore_password = "android"

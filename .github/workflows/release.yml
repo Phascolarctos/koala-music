@@ -102,41 +102,55 @@ jobs:
         run: |
           rustup target add aarch64-linux-android
 
-      - name: Cache cargo-apk
-        id: cache-cargo-apk
+      - name: Cache cargo-apk2
+        id: cache-cargo-apk2
         uses: actions/cache@v5
         with:
-          path: ~/.cargo/bin/cargo-apk
-          key: cargo-apk-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cargo/bin/cargo-apk2
+          key: cargo-apk2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-apk-${{ runner.os }}-
+            cargo-apk2-${{ runner.os }}-
 
-      - name: Install cargo-apk
-        if: steps.cache-cargo-apk.outputs.cache-hit != 'true'
-        run: cargo install cargo-apk
+      - name: Install cargo-apk2
+        if: steps.cache-cargo-apk2.outputs.cache-hit != 'true'
+        run: cargo install cargo-apk2
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
       - name: Decode Keystore
         run: |
-          mkdir -p /home/runner/.android
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > /home/runner/.android/release.keystore
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.keystore"
 
-      - name: Build Signed Android APK
+      - name: Build Android APK
         env:
           ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
-          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
-          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          CARGO_APK_RELEASE_KEYALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          CARGO_APK_RELEASE_KEYSTORE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          cargo apk build --target aarch64-linux-android --lib --release
+          cargo apk2 build --target aarch64-linux-android --lib --release
+
+      - name: Align and Sign APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.1.0"
+          UNSIGNED_APK=$(find target -name "*.apk" | head -n 1)
+          echo "Found APK: $UNSIGNED_APK"
+
+          "$BUILD_TOOLS/zipalign" -p -f 4 "$UNSIGNED_APK" aligned.apk
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$RUNNER_TEMP/release.keystore" \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+            --out KoalaMusic-signed.apk aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose KoalaMusic-signed.apk
 
       - name: Prepare Android Package
         run: |
           mkdir -p staging
-          find target -name "*.apk" -exec cp {} staging/koala-android-arm64.apk \;
+          cp KoalaMusic-signed.apk staging/koala-android-arm64.apk
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v7
