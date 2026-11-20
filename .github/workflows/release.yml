@@ -120,11 +120,14 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          mkdir -p /home/runner/.android
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > /home/runner/.android/release.keystore
 
       - name: Build Android APK
         env:
           ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
+          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           cargo apk2 build --target aarch64-linux-android --lib --release
 

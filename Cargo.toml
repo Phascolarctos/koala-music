@@ -63,10 +63,10 @@ categories = ["android.intent.category.LAUNCHER"]
 name = "android.permission.WRITE_EXTERNAL_STORAGE"
 max_sdk_version = 37
 
-# APK 签名在 CI（.github/workflows/release.yml）中通过 apksigner 完成，
-# 使用 GitHub Secrets：ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD /
-# ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD。
-# 本地调试签名可按需添加：
-# [package.metadata.android.signing.release]
-# path = "my.keystore"
-# keystore_password = "android"
+# cargo-apk2 要求 release 构建必须配置签名，否则报错退出。
+# CI 中通过环境变量 CARGO_APK_RELEASE_KEYSTORE / CARGO_APK_RELEASE_KEYSTORE_PASSWORD
+# 覆盖此配置（优先级高于 manifest），最终由 apksigner 使用完整 secrets 签名。
+# 本地调试时可把 path 改为真实 keystore 路径。
+[package.metadata.android.signing.release]
+path = "release.keystore"
+keystore_password = "android"
