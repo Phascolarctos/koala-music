@@ -41,7 +41,6 @@ pub fn take_picked_path() -> Option<String> {
         let path = env.get_string(&s).ok()?.to_string_lossy().into_owned();
         Some(path)
     })
-    .flatten()
 }
 
 /// Android 11+ 是否已授予"所有文件访问"；低版本恒为 true。
