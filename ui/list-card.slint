@@ -1,6 +1,6 @@
 import { Card } from "card.slint";
 import { RecordCard } from "record-card.slint";
-import { ScrollView } from "std-widgets.slint";
+import { ListView } from "std-widgets.slint";
 
 export struct Record {
     id: int,
@@ -28,28 +28,29 @@ export component ListCard inherits Rectangle {
         height: 100%;
         title: "输出记录";
         compact: root.is-narrow;
-        ScrollView {
-            width: 100%;
-            height: 100%;
-            vertical-stretch: 1;
-            mouse-drag-pan-enabled: true;
-            VerticalLayout {
+        VerticalLayout {
+            padding: root.is-narrow ? 8px : 12px;
+            padding-right: root.is-narrow ? 8px : 20px;
+            ListView {
                 width: 100%;
-                alignment: start;
-                padding: root.is-narrow ? 8px : 12px;
-                padding-right: root.is-narrow ? 8px : 20px;
-                spacing: root.is-narrow ? 6px : 8px;
-                for record in root.records: RecordCard {
+                height: 100%;
+                for record[index] in root.records: Rectangle {
                     width: 100%;
-                    is-narrow: root.is-narrow;
-                    source-name: record.source-name;
-                    output-name: record.output-name;
-                    file-size: record.file-size;
-                    decrypt-date: record.decrypt-date;
-                    status: record.status;
-                    duration: record.duration;
-                    music_length: record.music-length;
-                    error-message: record.error-message;
+                    height: card.preferred-height + (root.is-narrow ? 6px : 8px);
+                    card := RecordCard {
+                        y: 0;
+                        width: 100%;
+                        height: card.preferred-height;
+                        is-narrow: root.is-narrow;
+                        source-name: record.source-name;
+                        output-name: record.output-name;
+                        file-size: record.file-size;
+                        decrypt-date: record.decrypt-date;
+                        status: record.status;
+                        duration: record.duration;
+                        music_length: record.music-length;
+                        error-message: record.error-message;
+                    }
                 }
             }
         }
