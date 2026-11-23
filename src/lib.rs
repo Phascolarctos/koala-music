@@ -4,6 +4,9 @@ pub mod history;
 pub mod ncm;
 pub mod ui;
 
+#[cfg(target_os = "android")]
+pub mod android_bridge;
+
 slint::include_modules!();
 
 #[cfg(target_os = "android")]

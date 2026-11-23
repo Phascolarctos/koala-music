@@ -39,7 +39,6 @@ pub fn bind_callbacks(ui: &AppWindow) {
     ui.on_source_dir_clicked({
         let ui_handle = ui_handle.clone();
         move || {
-            #[cfg(not(target_os = "android"))]
             pick_folder_into(ui_handle.clone(), |ui, s| {
                 ui.set_source_path(s.clone().into());
                 history::add_history_source(&s);
@@ -47,11 +46,6 @@ pub fn bind_callbacks(ui: &AppWindow) {
                 let target = ui.get_target_path().to_string();
                 rescan(ui, &s, &target);
             });
-            #[cfg(target_os = "android")]
-            {
-                let _ = &ui_handle;
-                // TODO: Android 端需通过 JNI/Intent 选择目录，见文末说明
-            }
         }
     });
 
@@ -72,7 +66,6 @@ pub fn bind_callbacks(ui: &AppWindow) {
     ui.on_target_dir_clicked({
         let ui_handle = ui_handle.clone();
         move || {
-            #[cfg(not(target_os = "android"))]
             pick_folder_into(ui_handle.clone(), |ui, s| {
                 ui.set_target_path(s.clone().into());
                 history::add_history_target(&s);
@@ -80,10 +73,6 @@ pub fn bind_callbacks(ui: &AppWindow) {
                 let source = ui.get_source_path().to_string();
                 rescan(ui, &source, &s);
             });
-            #[cfg(target_os = "android")]
-            {
-                let _ = &ui_handle;
-            }
         }
     });
 
@@ -163,4 +152,40 @@ fn pick_folder_into(ui_weak: slint::Weak<AppWindow>, apply: fn(&AppWindow, Strin
             }
         }
     }).ok();
+}
+
+/// Android：先确保"所有文件访问"权限，然后调起 SAF 目录选择器，
+/// 用 slint::Timer 轮询 Java 侧回传的选择结果（tree URI 已在 Java 侧映射为真实路径）。
+#[cfg(target_os = "android")]
+fn pick_folder_into(ui_weak: slint::Weak<AppWindow>, apply: fn(&AppWindow, String)) {
+    use std::time::Duration;
+
+    if !crate::android_bridge::has_storage_permission() {
+        log::info!("storage permission missing, request via settings");
+        crate::android_bridge::request_storage_permission();
+        return;
+    }
+    crate::android_bridge::pick_folder();
+
+    let timer = Rc::new(slint::Timer::default());
+    let stop_timer = timer.clone();
+    let mut ticks: u32 = 0;
+    timer.start(slint::TimerMode::Repeated, Duration::from_millis(500), move || {
+        ticks += 1;
+        match crate::android_bridge::take_picked_path() {
+            Some(path) => {
+                stop_timer.stop();
+                log::info!("picked folder: {path}");
+                if let Some(ui) = ui_weak.upgrade() {
+                    apply(&ui, path);
+                }
+            }
+            // 10 分钟未选择则放弃轮询
+            None => {
+                if ticks > 1200 {
+                    stop_timer.stop();
+                }
+            }
+        }
+    });
 }
