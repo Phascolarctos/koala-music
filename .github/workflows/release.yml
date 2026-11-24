@@ -16,6 +16,11 @@ on:
         required: false
         default: '本次更新内容如下：'
         type: string
+      build_debug:
+        description: '同时构建 Debug APK（debuggable，用于真机排查崩溃）'
+        required: false
+        default: 'false'
+        type: string
 
 jobs:
   build-windows:
@@ -160,6 +165,41 @@ jobs:
         with:
           name: android-package
           path: staging/*.apk
+
+      - name: Build Debug APK (debuggable)
+        if: inputs.build_debug == 'true'
+        env:
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
+          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cargo apk2 build --target aarch64-linux-android --lib
+
+      - name: Sign Debug APK
+        if: inputs.build_debug == 'true'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/36.1.0"
+          DEBUG_APK=$(find target/debug -name "*.apk" | head -n 1)
+          echo "Found debug APK: $DEBUG_APK"
+
+          "$BUILD_TOOLS/zipalign" -p -f 4 "$DEBUG_APK" debug-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks /home/runner/.android/release.keystore \
+            --ks-pass "pass:$ANDROID_KEYSTORE_PASSWORD" \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --key-pass "pass:$ANDROID_KEY_PASSWORD" \
+            --out KoalaMusic-debug.apk debug-aligned.apk
+
+      - name: Upload Debug APK
+        if: inputs.build_debug == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-debug
+          path: KoalaMusic-debug.apk
 
   create-release:
     needs: [build-windows, build-android]
