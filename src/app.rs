@@ -11,7 +11,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-fn get_audio_duration(path: &Path) -> String {
+pub fn get_audio_duration(path: &Path) -> String {
     if let Ok(tagged_file) = read_from_path(path) {
         let properties = tagged_file.properties();
         let secs = properties.duration().as_secs();
