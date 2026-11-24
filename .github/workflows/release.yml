@@ -100,67 +100,41 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4.0.4
         with:
-          packages: 'platforms;android-37 build-tools;36.1.0 ndk;30.0.16248370'
+          packages: 'platforms;android-36 build-tools;36.1.0 ndk;30.0.16248370'
           accept-android-sdk-licenses: true
 
       - name: Install Rust targets
         run: |
           rustup target add aarch64-linux-android
 
-      - name: Cache cargo-ndk
-        id: cache-cargo-ndk
+      - name: Cache cargo-apk2
+        id: cache-cargo-apk2
         uses: actions/cache@v5
         with:
-          path: ~/.cargo/bin/cargo-ndk
-          key: cargo-ndk-${{ runner.os }}
+          path: ~/.cargo/bin/cargo-apk2
+          key: cargo-apk2-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-apk2-${{ runner.os }}-
 
-      - name: Install cargo-ndk
-        if: steps.cache-cargo-ndk.outputs.cache-hit != 'true'
-        run: cargo install cargo-ndk
+      - name: Install cargo-apk2
+        if: steps.cache-cargo-apk2.outputs.cache-hit != 'true'
+        run: cargo install cargo-apk2
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
-
-      - name: Build Rust core (.so)
-        env:
-          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
-        run: |
-          cargo ndk -t arm64-v8a -p koala-rust build --release
-          ls -la target/aarch64-linux-android/release/*.so
-
-      - name: Generate Kotlin bindings (UniFFI)
-        run: |
-          cargo run --bin uniffi-bindgen -- generate src/koala.udl \
-            --language kotlin --out-dir android/app/src/main/kotlin --no-format
-          grep -rh "^package" android/app/src/main/kotlin | sort -u
-
-      - name: Copy .so into jniLibs
-        run: |
-          JNILIBS=android/app/src/main/jniLibs/arm64-v8a
-          mkdir -p "$JNILIBS"
-          SO=target/aarch64-linux-android/release/libkoala_rust.so
-          cp "$SO" "$JNILIBS/libkoala_rust.so"
-          # UniFFI 0.32 绑定用 JNA Native.register(componentName="koala")，加载 libuniffi_koala.so
-          COMPONENT=$(grep -rhoE 'componentName = "[^"]+"' android/app/src/main/kotlin \
-            | sed -E 's/.*"(.+)".*/\1/' | head -n 1)
-          echo "UniFFI component: $COMPONENT"
-          if [ -n "$COMPONENT" ]; then
-            cp "$SO" "$JNILIBS/libuniffi_$COMPONENT.so"
-          fi
-          ls -la "$JNILIBS"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.9.2'
-
-      - name: Build Release APK (Gradle)
-        run: gradle assembleRelease -p android --no-daemon
 
       - name: Decode Keystore
         run: |
           mkdir -p /home/runner/.android
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > /home/runner/.android/release.keystore
+
+      - name: Build Android APK
+        env:
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
+          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cargo apk2 build --target aarch64-linux-android --lib --release
 
       - name: Align and Sign APK
         env:
@@ -169,7 +143,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           BUILD_TOOLS="$ANDROID_HOME/build-tools/36.1.0"
-          UNSIGNED_APK=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          UNSIGNED_APK=$(find target -name "*.apk" | head -n 1)
+          echo "Found APK: $UNSIGNED_APK"
 
           "$BUILD_TOOLS/zipalign" -p -f 4 "$UNSIGNED_APK" aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
@@ -193,7 +168,12 @@ jobs:
 
       - name: Build Debug APK (debuggable)
         if: inputs.build_debug == 'true'
-        run: gradle assembleDebug -p android --no-daemon
+        env:
+          ANDROID_NDK_ROOT: /usr/local/lib/android/sdk/ndk/30.0.16248370
+          CARGO_APK_RELEASE_KEYSTORE: /home/runner/.android/release.keystore
+          CARGO_APK_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cargo apk2 build --target aarch64-linux-android --lib
 
       - name: Sign Debug APK
         if: inputs.build_debug == 'true'
@@ -203,7 +183,8 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           BUILD_TOOLS="$ANDROID_HOME/build-tools/36.1.0"
-          DEBUG_APK=android/app/build/outputs/apk/debug/app-debug.apk
+          DEBUG_APK=$(find target/debug -name "*.apk" | head -n 1)
+          echo "Found debug APK: $DEBUG_APK"
 
           "$BUILD_TOOLS/zipalign" -p -f 4 "$DEBUG_APK" debug-aligned.apk
           "$BUILD_TOOLS/apksigner" sign \
